@@ -586,7 +586,14 @@ const ZONES = [
     const dn2 = at(); slope(600, 180);
     const run = at(); flat(1000);
     slope(300, -90);
+    const fork = at();
     flat(1100);
+
+    // the climb at the end: stay low for the goal, or go up for the warp star
+    ledge(fork + 150, 58, 104);
+    ledge(fork + 300, 116, 112, fork + 150);
+    warpStar(fork + 356, 156, fork + 150, POPSTAR, 'POPSTAR');
+    ringArc(fork + 170, groundAt(fork + 150) - 96, 4, 30, 26);
 
     ringRun(430, 4, 40);
     ringRun(up1 + 120, 7, 48, 38);
@@ -1546,8 +1553,50 @@ const ZONES = [
     box(620);
   }
 }
+,
+{
+  name:'PLANET POPSTAR', startY:260, key:5, tempo:0.118, deco:null, bonus:true,
+  theme:{ skyTop:'#2f8fe0', skyMid:'#7fd0ff', skyLow:'#d6f2ff',
+          hillFar:'#ff8fc4', hillNear:'#e0609e',
+          grass:'#6ee06e', grassHi:'#b6f79a', grassLo:'#3fa845',
+          dirt:'#d98f5c', dirtLo:'#8a5230', dirtChk:'#c47a45', clouds:true },
+  sky(){ popstarSky(); },
+  back(){ popstarBack(); },
+  build(){
+    flat(700);
+    const h1 = at(); bumps(1000, 48, 3);
+    const v1 = at(); slope(260, 80); flat(200); slope(260, -80);
+    const r1 = at(); slope(400, 110);
+    const loopA = at(); flat(700);
+    const h2 = at(); bumps(900, 54, 2);
+    const cp1 = at(); flat(500);
+    const run = at(); flat(900);
+    flat(1100);
+
+    // a bonus stage: rings everywhere, barely any trouble
+    ringRun(420, 6, 40);
+    ringHop(h1 + 160, 4, 240, 46);
+    ringRun(h1 + 200, 10, 44);
+    bounce(v1 + 230, 10);
+    ringArc(v1 + 280, groundAt(v1 + 280) - 130, 8, 32, 50);
+    box(v1 + 460);
+    dash(r1 + 280);
+    ring360(loopA + 340, 140);
+    ringLine(loopA + 170, groundAt(loopA + 170) - 34, 6, 42);
+    ringRun(h2 + 120, 12, 44);
+    fly(h2 + 420, 130, 190);
+    post(cp1 + 240);
+    box(cp1 + 380);
+    ringRun(run + 120, 18, 44);
+    bug(run + 620);
+    box(run + 800);
+  }
+}
 ];
-const ZONE_COUNT = ZONES.filter(z => !z.boss).length;
+const ZONE_COUNT = ZONES.filter(z => !z.boss && !z.bonus).length;
+const POPSTAR = ZONES.findIndex(z => z.name === 'PLANET POPSTAR');
+let returnZone = null;      // where a warp should send you afterwards
+let warpFlash = 0;
 
 /* ==========================================================================
    SCENERY — per-zone set dressing. Zones opt in with sky(), back() or front();
@@ -3304,6 +3353,200 @@ function drawBossBar(){
   }
 }
 
+/* ==========================================================================
+   WARP STARS — an optional doorway out of a zone.
+   Zone 3 has one. Climb to it and you go to Planet Popstar instead of
+   carrying straight on.
+   ========================================================================== */
+const warps = [];
+function warpStar(x, up, refX, to, label){
+  warps.push({ x, y: groundAt(refX === undefined ? x : refX) - up, to, label: label || 'POPSTAR', t: 0, taken: false });
+}
+
+function drawWarps(){
+  for (const w of warps){
+    if (w.x < visL() - 60 || w.x > visR() + 60) continue;
+    const bob = Math.sin(frames * 0.05) * 6;
+    const spin = frames * 0.03;
+    const cx = w.x, cy = w.y + bob;
+
+    // sparkle halo
+    const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, 46);
+    g.addColorStop(0, 'rgba(255,240,150,.55)');
+    g.addColorStop(1, 'rgba(255,220,90,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, 46, 0, 7); ctx.fill();
+
+    // five-pointed warp star
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.sin(spin) * 0.25);
+    for (const [R, col] of [[23, '#ffb02e'], [19, '#ffd23f'], [11, '#fff3b0']]){
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++){
+        const a = -Math.PI / 2 + i * Math.PI / 5;
+        const rr = i % 2 ? R * 0.44 : R;
+        ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      }
+      ctx.closePath();
+      ctx.fillStyle = col; ctx.fill();
+    }
+    // a little face, because it is a warp star
+    ctx.fillStyle = '#2b1c10';
+    ctx.beginPath(); ctx.ellipse(-5, -2, 1.8, 2.6, 0, 0, 7); ctx.ellipse(5, -2, 1.8, 2.6, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#2b1c10'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(0, 3, 3, 0.2, Math.PI - 0.2); ctx.stroke();
+    ctx.restore();
+
+    // trailing sparkles
+    for (let i = 0; i < 4; i++){
+      const t = (frames * 0.03 + i * 0.25) % 1;
+      ctx.globalAlpha = 1 - t;
+      ctx.fillStyle = '#fff3b0';
+      ctx.fillRect(cx - 26 - t * 22, cy + Math.sin(i * 2 + frames * 0.1) * 12, 3, 3);
+    }
+    ctx.globalAlpha = 1;
+
+    // banner naming where it goes
+    ctx.font = '8px "Press Start 2P", monospace';
+    const tw = ctx.measureText(w.label).width;
+    ctx.fillStyle = 'rgba(11,18,32,.8)';
+    ctx.fillRect(cx - tw / 2 - 6, cy - 54, tw + 12, 15);
+    ctx.fillStyle = '#ffd23f';
+    ctx.fillRect(cx - tw / 2 - 6, cy - 54, tw + 12, 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(w.label, cx - tw / 2, cy - 43);
+  }
+}
+
+function checkWarps(){
+  if (state === 'title') return;            // the attract demo never warps
+  for (const w of warps){
+    if (w.taken) continue;
+    if (Math.abs(w.x - P.x) < 28 && Math.abs(w.y - P.y) < 34){
+      w.taken = true;
+      takeWarp(w.to);
+      return;
+    }
+  }
+}
+
+function takeWarp(to){
+  returnZone = zone + 1;                    // where the normal route would have gone
+  warpFlash = 42;
+  Audio_.blip(523, .12, 'square', .2, 1568);
+  setTimeout(() => Audio_.blip(784, .16, 'square', .2, 2093), 90);
+  for (let i = 0; i < 26; i++)
+    particles.push({ x: P.x + (Math.random()-.5)*40, y: P.y + (Math.random()-.5)*40,
+                     vx:(Math.random()-.5)*7, vy:(Math.random()-.5)*7, life:34, max:34,
+                     c: i % 2 ? '#ffd23f' : '#ffffff', s:3 });
+  zone = to;
+  startZoneRun();
+}
+
+/* --------------------------- Planet Popstar ------------------------------ */
+function popstarSky(){
+  // the big friendly sun
+  const sx = W * 0.18, sy = H * 0.2 - cam.y * 0.03, R = 40;
+  const g = ctx.createRadialGradient(sx, sy, R * 0.5, sx, sy, R * 2.6);
+  g.addColorStop(0, 'rgba(255,240,150,.5)');
+  g.addColorStop(1, 'rgba(255,220,120,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, R * 2.6, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff3a8';
+  ctx.beginPath(); ctx.arc(sx, sy, R, 0, 7); ctx.fill();
+  ctx.fillStyle = '#ffd86b';
+  ctx.beginPath(); ctx.arc(sx, sy, R * 0.74, 0, 7); ctx.fill();
+
+  // warp stars sailing across the sky
+  for (let i = 0; i < 5; i++){
+    const t = (frames * 0.0035 + i * 0.22) % 1;
+    const wx = W * 1.15 - t * (W * 1.4), wy = 40 + i * 34 + Math.sin(t * 6 + i) * 14;
+    ctx.save();
+    ctx.translate(wx, wy);
+    ctx.rotate(Math.sin(frames * 0.04 + i) * 0.3);
+    ctx.fillStyle = 'rgba(255,240,170,.9)';
+    ctx.beginPath();
+    for (let k = 0; k < 10; k++){
+      const a = -Math.PI / 2 + k * Math.PI / 5;
+      const rr = k % 2 ? 4 : 10;
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,235,160,.45)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(wx + 10, wy); ctx.lineTo(wx + 44, wy + 5); ctx.stroke();
+  }
+}
+
+function popstarBack(){
+  // soft pink hills rolling behind
+  ctx.fillStyle = '#ffa8d4';
+  ctx.beginPath();
+  ctx.moveTo(visL(), cam.y + H + 60);
+  for (let px = -40; px <= W + 40; px += 26){
+    const wx = cam.x + px;
+    ctx.lineTo(wx, cam.y + 268 - Math.abs(Math.sin(wx * 0.0016)) * 62);
+  }
+  ctx.lineTo(visR(), cam.y + H + 60);
+  ctx.closePath(); ctx.fill();
+
+  // whispy-style trees with faces
+  scatter(300, (x, gy, a, b) => {
+    const h = 96 + a * 44;
+    ctx.fillStyle = '#9c6534';
+    ctx.fillRect(x - 15, gy - h * 0.55, 30, h * 0.55);
+    ctx.fillStyle = '#7d4d24';
+    ctx.fillRect(x - 15, gy - h * 0.55, 8, h * 0.55);
+    // canopy
+    ctx.fillStyle = '#3fc44a';
+    for (let i = 0; i < 5; i++){
+      const a2 = Math.PI + i * (Math.PI / 4);
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a2) * 30, gy - h + 16 + Math.sin(a2) * 12, 26, 0, 7);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#6ee06e';
+    ctx.beginPath(); ctx.arc(x - 12, gy - h + 6, 17, 0, 7); ctx.fill();
+    // sleepy face on the trunk
+    ctx.fillStyle = '#2b1c10';
+    ctx.beginPath();
+    ctx.arc(x - 7, gy - h * 0.42, 2.6, 0, 7);
+    ctx.arc(x + 7, gy - h * 0.42, 2.6, 0, 7);
+    ctx.fill();
+    ctx.strokeStyle = '#2b1c10'; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    const yawn = b > 0.5 ? 3.6 : 2.4;
+    ctx.ellipse(x, gy - h * 0.3, 4, yawn, 0, 0, 7);
+    ctx.stroke();
+    ctx.fillStyle = '#ff9ec4';
+    ctx.beginPath(); ctx.arc(x - 14, gy - h * 0.34, 3.4, 0, 7); ctx.arc(x + 14, gy - h * 0.34, 3.4, 0, 7); ctx.fill();
+  });
+
+  // flower patches and little stars in the grass
+  scatter(110, (x, gy, a, b) => {
+    if (b > 0.5){
+      const cols = ['#ff7ab8', '#ffd23f', '#7fd0ff'];
+      ctx.fillStyle = cols[Math.floor(a * 3) % 3];
+      for (let i = 0; i < 5; i++){
+        const ang = i / 5 * Math.PI * 2;
+        ctx.beginPath(); ctx.arc(x + Math.cos(ang) * 5, gy - 8 + Math.sin(ang) * 5, 3.4, 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = '#fff3b0';
+      ctx.beginPath(); ctx.arc(x, gy - 8, 2.6, 0, 7); ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(255,240,170,.9)';
+      ctx.save(); ctx.translate(x, gy - 7); ctx.rotate(a * 3);
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++){
+        const ang = -Math.PI / 2 + k * Math.PI / 5;
+        ctx.lineTo(Math.cos(ang) * (k % 2 ? 2.4 : 6), Math.sin(ang) * (k % 2 ? 2.4 : 6));
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  });
+}
+
 /* --- ambient weather/particle layer, one per zone --- */
 let ambient = [];
 function makeAmbient(kind){
@@ -3327,10 +3570,11 @@ function loadZone(i){
   const z = ZONES[i];
   hm.length = 0;
   buildY = z.startY;
-  rings.length = enemies.length = springs.length = spikes.length = 0;
+  rings.length = enemies.length = springs.length = spikes.length = warps.length = 0;
   platforms.length = loops.length = boosters.length = monitors.length = lamps.length = 0;
   z.build();
   LEVEL_W = hm.length * CELL;
+  if (z.bonus && returnZone === null) returnZone = 3;   // back to zone 4 afterwards
   if (z.boss){
     GOAL.x = -99999; GOAL.y = 0; GOAL.spin = 0; GOAL.hit = false;
     bossReset(true);
@@ -3494,6 +3738,8 @@ function startZoneRun(){
 // a fresh run: three lives, no score, starting at zone i
 function newGame(i){
   zone = Math.max(0, Math.min(ZONES.length - 1, i));
+  returnZone = null;
+  for (const w of warps) w.taken = false;
   P.spawns = 2; P.score = 0;
   startZoneRun();
 }
@@ -3501,6 +3747,13 @@ function newGame(i){
 function resetGame(){ newGame(zone); }
 
 function advanceZone(){
+  if (returnZone !== null){          // coming back from a warp zone
+    zone = Math.min(returnZone, ZONES.length - 1);
+    returnZone = null;
+    startZoneRun();
+    setState('play');
+    return;
+  }
   if (zone + 1 >= ZONES.length){
     els.doneScore.textContent = String(P.score);
     els.doneTitle.textContent = 'ALL ' + ZONES.length + ' ZONES CLEAR';
@@ -3516,7 +3769,9 @@ function advanceZone(){
 function showZoneLabel(){
   els.zonePick.textContent = ZONES[pick].boss
     ? '< FINAL BOSS \u00b7 ' + ZONES[pick].name + ' >'
-    : '< ZONE ' + (pick + 1) + '/' + ZONE_COUNT + ' \u00b7 ' + ZONES[pick].name + ' >';
+    : (ZONES[pick].bonus
+        ? '< SECRET \u00b7 ' + ZONES[pick].name + ' >'
+        : '< ZONE ' + (pick + 1) + '/' + ZONE_COUNT + ' \u00b7 ' + ZONES[pick].name + ' >');
 }
 
 function respawn(){
@@ -3603,6 +3858,8 @@ function update(){
   clampWorld();
   collectibles();
   hazards();
+  checkWarps();
+  if (warpFlash > 0) warpFlash--;
   if (ZONES[zone].boss) updateBoss();
   updateEntities();
   updateCamera();
@@ -4044,6 +4301,7 @@ function draw(){
   if (ZONES[zone].front) ZONES[zone].front();
   drawPlatforms();
   drawObjects();
+  drawWarps();
   drawEntities();
   if (ZONES[zone].boss) drawBoss();
   drawParticlesBack();
@@ -4655,7 +4913,9 @@ function drawHUD(){
   ctx.fillStyle = C.hero; ctx.fillRect(bx + bw * prog - 2, by - 3, 5, 12);
 
   pxFont(7);
-  const zlabel = ZONES[zone].boss ? 'FINAL BOSS' : 'ZONE ' + (zone + 1) + ' ' + ZONES[zone].name;
+  const zlabel = ZONES[zone].boss ? 'FINAL BOSS'
+               : ZONES[zone].bonus ? 'SECRET ' + ZONES[zone].name
+               : 'ZONE ' + (zone + 1) + ' ' + ZONES[zone].name;
   shadowText(zlabel, W - 14 - ctx.measureText(zlabel).width, by + 22, C.gold);
 
   if (P.spinning){
@@ -4667,6 +4927,10 @@ function drawHUD(){
     shadowText('LIGHT SPEED', W / 2 - 44, 30, '#ffffff');
   }
   drawCard();
+  if (warpFlash > 0){
+    ctx.fillStyle = 'rgba(255,245,200,' + (warpFlash / 42 * 0.85).toFixed(2) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
 }
 
 /* The zone announcement: the land's name above, the zone's name below.
@@ -4706,6 +4970,9 @@ function drawCard(){
   if (ZONES[zone].boss){
     ctx.fillStyle = '#ff8a8a';
     ctx.fillText('FINAL BOSS', 26, cy - 12);
+  } else if (ZONES[zone].bonus){
+    ctx.fillStyle = '#ffd23f';
+    ctx.fillText('SECRET WARP', 26, cy - 12);
   }
   ctx.font = '22px "Bungee", Impact, sans-serif';
   ctx.fillStyle = '#0b1220';
@@ -4714,7 +4981,7 @@ function drawCard(){
   ctx.fillText(ZONES[zone].name, 26, cy + 18);
 
   pxFont(9);
-  const zt = ZONES[zone].boss ? 'THE END' : 'ZONE ' + (zone + 1);
+  const zt = ZONES[zone].boss ? 'THE END' : (ZONES[zone].bonus ? 'BONUS' : 'ZONE ' + (zone + 1));
   ctx.fillStyle = C.gold;
   ctx.fillText(zt, W - 26 - ctx.measureText(zt).width, cy - 12);
   ctx.restore();
@@ -4731,7 +4998,10 @@ function showResults(){
     '<span>TIME BONUS</span><span>' + timeBonus + '</span>' +
     '<span>RING BONUS</span><span>' + ringBonus + '</span>' +
     '<span>TOTAL</span><span>' + P.score + '</span>';
-  els.nextUp.textContent = zone + 1 < ZONES.length
+  if (ZONES[zone].bonus) els.clearTitle.textContent = 'POPSTAR CLEAR!';
+  els.nextUp.textContent = ZONES[zone].bonus
+    ? 'BACK TO PEACE HILLS \u00b7 ZONE ' + ((returnZone === null ? 3 : returnZone) + 1)
+    : zone + 1 < ZONES.length
     ? (ZONES[zone + 1].boss
         ? 'NEXT UP \u00b7 FINAL BOSS \u00b7 ' + ZONES[zone + 1].name
         : 'NEXT UP \u00b7 ZONE ' + (zone + 2) + ' \u00b7 ' + ZONES[zone + 1].name)
