@@ -1572,7 +1572,7 @@ const ZONES = [
     const run = at(); flat(900);
     flat(1100);
 
-    buddy(330);                      // Kirby is standing right here
+    buddy(330);                      // Nana is standing right here
     // a bonus stage: rings everywhere, barely any trouble
     ringRun(420, 6, 40);
     ringHop(h1 + 160, 4, 240, 46);
@@ -3568,31 +3568,50 @@ function popstarBack(){
 }
 
 /* ==========================================================================
-   KIRBY — waiting on Popstar. Touch him and you swap over.
+   NANA — waiting on Popstar. Touch him and you swap over.
    He runs like Jack but can puff up and float in mid-air.
    ========================================================================== */
 const buddies = [];
 function buddy(x){ buddies.push({ x, y: groundAt(x) - 18, inside: false, t: 0 }); }
 
-const KP = { body:'#ffa6d2', bodyLo:'#e06ba6', bodyHi:'#ffd4e8',
-             foot:'#e0303c', footLo:'#a81d2b', cheek:'#ff6f9e',
-             eye:'#1b2340', eyeTop:'#2f6bd4' };
+/* Nana, drawn the way she looks in Nana's Dreamland */
+const NP = { body:'#ffd93b', shade:'#f0b400', hi:'#fff29a',
+             armBack:'#ffcf2e', footBack:'#d94a2e', footFront:'#f4663f',
+             blush:'#ff8fb1', out:'#3a2a52', eyeDark:'#2b2350', mouth:'#7d2438' };
 
-function drawKirby(x, y, ang, face, ball, anim, ghost, spd, crouch){
+function nanaEye(x, y, rx, ry){
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.clip();
+  ctx.fillStyle = NP.eyeDark; ctx.fillRect(x - rx - 1, y - ry - 1, rx * 2 + 2, ry * 2 + 2);
+  ctx.fillStyle = '#ffffff';  ctx.fillRect(x - rx - 1, y + ry * 0.18, rx * 2 + 2, ry + 1);
+  ctx.restore();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.ellipse(x - rx * 0.12, y - ry * 0.45, rx * 0.52, ry * 0.3, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = NP.out; ctx.lineWidth = 1; 
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.stroke();
+}
+function blob(x, y, rx, ry, rot, col, lw){
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot || 0, 0, 7);
+  ctx.fillStyle = col; ctx.fill();
+  ctx.lineWidth = lw || 2.6; ctx.strokeStyle = NP.out; ctx.stroke();
+}
+
+function drawNana(x, y, ang, face, ball, anim, ghost, spd, crouch){
   ctx.save();
   ctx.translate(x, y);
 
   if (ball){
     ctx.rotate(anim * (face >= 0 ? 1 : -1) * 0.55);
-    ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7);
-    ctx.fillStyle = KP.body; ctx.fill();
-    ctx.lineWidth = 3; ctx.strokeStyle = KP.bodyLo; ctx.stroke();
-    ctx.fillStyle = KP.bodyHi;
-    ctx.beginPath(); ctx.arc(-5, -6, 6, 0, 7); ctx.fill();
-    // feet tucked in
-    ctx.fillStyle = KP.foot;
-    ctx.beginPath(); ctx.ellipse(6, 9, 8, 5, 0.6, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(-7, 8, 8, 5, -0.6, 0, 7); ctx.fill();
+    blob(0, 0, 17, 17, 0, NP.body, 3);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.clip();
+    ctx.fillStyle = NP.shade;
+    ctx.beginPath(); ctx.ellipse(5, 9, 16, 9, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = NP.hi;
+    ctx.beginPath(); ctx.ellipse(-6, -8, 7, 5, -0.5, 0, 7); ctx.fill();
+    ctx.restore();
+    blob(7, 9, 9, 6, 0.6, NP.footFront, 2.4);
+    blob(-8, 8, 9, 6, -0.6, NP.footBack, 2.4);
     if (!ghost){
       ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(0, 0, 13, 0.5, 2.1); ctx.stroke();
@@ -3604,92 +3623,69 @@ function drawKirby(x, y, ang, face, ball, anim, ghost, spd, crouch){
   ctx.rotate(ang);
   ctx.scale(face, 1);
   const run = spd > 0.4, fast = spd > 5.4;
-  const floating = P.char === 'kirby' && P.puffs > 0 && !P.grounded;
-  const bob = run ? Math.sin(anim * 2) * 1.2 : Math.sin(frames * 0.05) * 1;
+  const floating = P.char === 'nana' && P.puffs > 0 && !P.grounded;
+  let rx = 17, ry = 17;
+  if (floating){ rx = 19.6; ry = 19.6; }
   if (crouch){ ctx.translate(0, 9); ctx.scale(1.1, 0.62); }
-  if (floating) ctx.scale(1.12, 1.12);
+  const step = run ? Math.sin(anim * 2) : 0;
+  const yb = run ? -Math.abs(step) * 1.6 : Math.sin(frames * 0.05) * 1;
 
   /* feet */
+  const fy = yb + ry - 0.4;
   if (!crouch){
     if (fast){
       ctx.fillStyle = 'rgba(255,255,255,.45)';
-      ctx.beginPath(); ctx.ellipse(0, 14, 15, 7, 0, 0, 7); ctx.fill();
-      ctx.strokeStyle = KP.footLo; ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.ellipse(-4, 14, 7, 5, Math.sin(anim * 3) * .7, 0, 7);
-      ctx.ellipse(5, 14, 7, 5, -Math.sin(anim * 3) * .7, 0, 7);
-      ctx.stroke();
-      ctx.strokeStyle = KP.foot; ctx.lineWidth = 3; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, fy - 1, 16, 7, 0, 0, 7); ctx.fill();
+      blob(-6 + Math.sin(anim * 3) * 4, fy, 9, 6, -0.3, NP.footBack, 2.2);
+      blob(7 - Math.sin(anim * 3) * 4, fy, 9.5, 6.4, 0.28, NP.footFront, 2.2);
     } else {
-      const sw = Math.sin(anim * 2) * (run ? 6 : 0);
-      for (const s of [-1, 1]){
-        const fx = 7 * s + sw * s * 0.6;
-        const fy = floating ? 16 : 14;
-        ctx.beginPath();
-        ctx.ellipse(fx, fy, 9, 5.5, s * 0.5, 0, 7);
-        ctx.fillStyle = KP.foot; ctx.fill();
-        ctx.lineWidth = 2; ctx.strokeStyle = KP.footLo; ctx.stroke();
-      }
+      blob(-10.4 - step * 4.4, fy, 9.2, 6.2, -0.3, NP.footBack, 2.4);
+      blob(8.8 + step * 4.4, fy + 0.6, 10, 6.6, 0.28, NP.footFront, 2.4);
     }
   } else {
-    for (const s of [-1, 1]){
-      ctx.beginPath(); ctx.ellipse(s * 8, 15, 9, 5, 0, 0, 7);
-      ctx.fillStyle = KP.foot; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = KP.footLo; ctx.stroke();
-    }
+    blob(-9, ry - 2, 9.2, 6, -0.3, NP.footBack, 2.4);
+    blob(9, ry - 2, 10, 6.4, 0.28, NP.footFront, 2.4);
   }
 
-  /* arms */
-  const armA = floating ? -0.9 : (run ? Math.sin(anim * 2 + Math.PI) * 0.5 : 0.1);
-  for (const s of [-1, 1]){
-    ctx.save();
-    ctx.translate(s * 17.5, 2 + bob * .3);
-    ctx.rotate(armA * s);
-    ctx.beginPath(); ctx.ellipse(0, 0, 7.5, 5.5, 0, 0, 7);
-    ctx.fillStyle = KP.body; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = KP.bodyLo; ctx.stroke();
-    ctx.restore();
-  }
+  /* back arm */
+  const armSw = floating ? Math.sin(frames * 0.3) * 2.2 : step * 2.8;
+  blob(-(rx + 1.2), yb + 0.8 + armSw * 0.4, 7.2, 5.6, -0.5, NP.armBack, 2.4);
 
   /* body */
-  ctx.beginPath(); ctx.arc(0, bob * .4, 17, 0, 7);
-  ctx.fillStyle = KP.body; ctx.fill();
-  ctx.lineWidth = 2.5; ctx.strokeStyle = KP.bodyLo; ctx.stroke();
-  ctx.beginPath(); ctx.arc(-6, -7 + bob * .4, 6, 0, 7);
-  ctx.fillStyle = KP.bodyHi; ctx.fill();
+  blob(0, yb, rx, ry, 0, NP.body, 3);
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(0, yb, rx, ry, 0, 0, 7); ctx.clip();
+  ctx.fillStyle = NP.shade;
+  ctx.beginPath(); ctx.ellipse(6, yb + 10, rx * 0.95, ry * 0.55, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = NP.hi;
+  ctx.beginPath(); ctx.ellipse(-6.8, yb - 8.4, rx * 0.42, ry * 0.3, -0.5, 0, 7); ctx.fill();
+  ctx.restore();
+
+  /* front arm over the body */
+  blob(rx - 2.8, yb + 3.2 - armSw * 0.4, 7, 5.4, -0.42, NP.body, 2.4);
 
   /* face */
-  const fy2 = -4 + bob * .4;
-  // eyes
-  for (const [ex, w2] of [[-5.5, 3.1], [4.5, 3.1]]){
-    ctx.beginPath(); ctx.ellipse(ex, fy2, w2, floating ? 5.6 : 6.6, 0, 0, 7);
-    ctx.fillStyle = KP.eye; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(ex, fy2 - 2.6, w2 * 0.86, 2.6, 0, 0, 7);
-    ctx.fillStyle = KP.eyeTop; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(ex, fy2 - 3.4, w2 * 0.5, 1.5, 0, 0, 7);
-    ctx.fillStyle = '#ffffff'; ctx.fill();
-  }
-  // cheeks
-  ctx.fillStyle = KP.cheek;
-  ctx.beginPath(); ctx.ellipse(-12, fy2 + 5.5, 4.4, 2.8, -0.2, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(11, fy2 + 5.5, 4.4, 2.8, 0.2, 0, 7); ctx.fill();
-  // mouth
-  ctx.fillStyle = '#c4325c';
+  ctx.fillStyle = NP.blush;
+  ctx.beginPath(); ctx.ellipse(10, yb + 4.4, 5.2, 3.6, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-10.8, yb + 5.2, 3.6, 2.6, 0, 0, 7); ctx.fill();
+  const eyeY = yb - 5.6;
+  nanaEye(2.4, eyeY, 3.4, floating ? 5.8 : 6.8);
+  nanaEye(10.4, eyeY, 3.4, floating ? 5.8 : 6.8);
   if (floating){
-    ctx.beginPath(); ctx.ellipse(0, fy2 + 7.5, 3.4, 4, 0, 0, 7); ctx.fill();
+    blob(9.2, yb + 8.4, 5.4, 6.4, 0, NP.mouth, 2.2);
+    ctx.fillStyle = '#ff9fb5';
+    ctx.beginPath(); ctx.ellipse(9.2, yb + 10.4, 2.6, 2.4, 0, 0, 7); ctx.fill();
   } else {
-    ctx.beginPath();
-    ctx.moveTo(-3.4, fy2 + 6);
-    ctx.quadraticCurveTo(0, fy2 + 10.5, 3.4, fy2 + 6);
-    ctx.quadraticCurveTo(0, fy2 + 8, -3.4, fy2 + 6);
-    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = NP.mouth; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(8, yb + 6, 4.6, 0.2, Math.PI - 0.2); ctx.stroke();
+    ctx.lineCap = 'butt';
   }
   ctx.restore();
 }
 
 /* one dispatcher so everything draws whoever you are playing */
 function drawChar(who, x, y, ang, face, ball, anim, ghost, spd, crouch){
-  if (who === 'kirby') drawKirby(x, y, ang, face, ball, anim, ghost, spd, crouch);
+  if (who === 'nana') drawNana(x, y, ang, face, ball, anim, ghost, spd, crouch);
   else drawJack(x, y, ang, face, ball, anim, ghost, spd, crouch);
 }
 
@@ -3697,7 +3693,7 @@ function drawChar(who, x, y, ang, face, ball, anim, ghost, spd, crouch){
 function drawBuddies(){
   for (const b of buddies){
     if (b.x < visL() - 60 || b.x > visR() + 60) continue;
-    const other = P.char === 'kirby' ? 'jack' : 'kirby';
+    const other = P.char === 'nana' ? 'jack' : 'nana';
     const bob = Math.sin(frames * 0.045) * 2;
     // a soft spotlight so he stands out
     const g = ctx.createRadialGradient(b.x, b.y, 6, b.x, b.y, 46);
@@ -3708,12 +3704,12 @@ function drawBuddies(){
 
     drawChar(other, b.x, b.y + bob, 0, -1, false, frames * 0.02, false, 0, false);
 
-    const label = other === 'kirby' ? 'PLAY AS KIRBY' : 'PLAY AS JACK';
+    const label = other === 'nana' ? 'PLAY AS NANA' : 'PLAY AS JACK';
     ctx.font = '8px "Press Start 2P", monospace';
     const tw = ctx.measureText(label).width;
     ctx.fillStyle = 'rgba(11,18,32,.8)';
     ctx.fillRect(b.x - tw / 2 - 6, b.y - 62, tw + 12, 15);
-    ctx.fillStyle = other === 'kirby' ? '#ff9ec4' : C.hero;
+    ctx.fillStyle = other === 'nana' ? '#ffd93b' : C.hero;
     ctx.fillRect(b.x - tw / 2 - 6, b.y - 62, tw + 12, 2);
     ctx.fillStyle = '#ffffff';
     ctx.fillText(label, b.x - tw / 2, b.y - 51);
@@ -3731,9 +3727,9 @@ function checkBuddies(){
 }
 
 function swapChar(){
-  P.char = P.char === 'kirby' ? 'jack' : 'kirby';
+  P.char = P.char === 'nana' ? 'jack' : 'nana';
   P.puffs = 0;
-  swapHint = P.char === 'kirby' ? 260 : 0;
+  swapHint = P.char === 'nana' ? 260 : 0;
   Audio_.blip(660, .1, 'square', .18, 1320);
   setTimeout(() => Audio_.blip(990, .14, 'square', .16, 1760), 80);
   for (let i = 0; i < 22; i++){
@@ -3772,7 +3768,7 @@ function loadZone(i){
   z.build();
   LEVEL_W = hm.length * CELL;
   if (z.bonus && returnZone === null) returnZone = 3;   // back to zone 4 afterwards
-  if (!z.bonus){ P.char = 'jack'; P.puffs = 0; swapHint = 0; }   // Kirby stays on Popstar
+  if (!z.bonus){ P.char = 'jack'; P.puffs = 0; swapHint = 0; }   // Nana stays on Popstar
   if (z.boss){
     GOAL.x = -99999; GOAL.y = 0; GOAL.spin = 0; GOAL.hit = false;
     bossReset(true);
@@ -4126,7 +4122,7 @@ function updateGround(L, R, D){
     P.vy = -JUMP + Math.abs(P.gsp) * 0.02 * -1;
     P.vy = -JUMP;
     P.vx += Math.sin(ang) * JUMP * 0.35;
-    P.grounded = false; P.jumping = true; P.roll = P.char !== 'kirby'; P.crouch = false;
+    P.grounded = false; P.jumping = true; P.roll = P.char !== 'nana'; P.crouch = false;
     P.coyote = 0;
     P.y -= 2;
     Audio_.jump();
@@ -4165,7 +4161,7 @@ function updateAir(L, R){
   if (P.coyote > 0) P.coyote--;
   // ran off the edge a moment ago — a jump pressed now still counts
   if (jumpEdge && P.coyote > 0 && !P.jumping){
-    P.vy = -JUMP; P.jumping = true; P.roll = P.char !== 'kirby'; P.coyote = 0;
+    P.vy = -JUMP; P.jumping = true; P.roll = P.char !== 'nana'; P.coyote = 0;
     jumpEdge = false;
     Audio_.jump();
   }
@@ -4175,13 +4171,13 @@ function updateAir(L, R){
   // variable jump height
   if (P.jumping && !jumpHeld && P.vy < -3.6) P.vy = -3.6;
 
-  // Kirby puffs up for extra height, then drifts down gently
-  if (P.char === 'kirby' && jumpEdge && P.puffs < 4 && P.vy > -2){
+  // Nana puffs up for extra height, then drifts down gently
+  if (P.char === 'nana' && jumpEdge && P.puffs < 4 && P.vy > -2){
     P.vy = -4.6; P.puffs++; jumpEdge = false;
     puff(P.x, P.y + 12, 5);
     Audio_.blip(520 + P.puffs * 90, .12, 'sine', .13, 900);
   }
-  P.vy += (P.char === 'kirby' && P.puffs > 0 && P.vy > 0) ? GRAV * 0.45 : GRAV;
+  P.vy += (P.char === 'nana' && P.puffs > 0 && P.vy > 0) ? GRAV * 0.45 : GRAV;
   if (P.vy > MAXFALL) P.vy = MAXFALL;
   if (P.vy < 0 && Math.abs(P.vx) > 0.1 && !L && !R) P.vx *= 0.998;
 
@@ -4207,7 +4203,7 @@ function updateAir(L, R){
     if (gy < 1e8 && feet >= gy){ land(gy, angleAt(P.x)); return; }
   }
   P.anim += 0.25;
-  if (Math.abs(P.vx) > LIGHT && frames % 2 === 0) echoes.push({ who:P.char, x:P.x, y:P.y, a:0.5, roll:P.char !== 'kirby', ang:0, face:P.face, anim:P.anim });
+  if (Math.abs(P.vx) > LIGHT && frames % 2 === 0) echoes.push({ who:P.char, x:P.x, y:P.y, a:0.5, roll:P.char !== 'nana', ang:0, face:P.face, anim:P.anim });
 }
 
 function land(gy, ang){
@@ -4909,8 +4905,8 @@ function drawPlayer(){
     }
     ctx.globalAlpha = 1;
   }
-  // Jack curls up when he jumps; Kirby keeps his shape so he can puff up
-  const ballNow = P.roll || P.spinning || (!P.grounded && P.char !== 'kirby');
+  // Jack curls up when he jumps; Nana keeps her shape so she can puff up
+  const ballNow = P.roll || P.spinning || (!P.grounded && P.char !== 'nana');
   drawChar(P.char, P.x, P.y, P.ang, P.face, ballNow, P.anim, false,
            Math.abs(P.grounded ? P.gsp : P.vx), P.crouch || P.spinning);
 }
@@ -5137,7 +5133,7 @@ function drawHUD(){
     pxFont(8);
     shadowText('LIGHT SPEED', W / 2 - 44, 30, '#ffffff');
   }
-  if (swapHint > 0 && P.char === 'kirby'){
+  if (swapHint > 0 && P.char === 'nana'){
     pxFont(8);
     const msg = 'JUMP AGAIN IN THE AIR TO FLOAT';
     shadowText(msg, W / 2 - ctx.measureText(msg).width / 2, H - 52,
