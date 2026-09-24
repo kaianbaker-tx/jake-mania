@@ -589,11 +589,10 @@ const ZONES = [
     const fork = at();
     flat(1100);
 
-    // the climb at the end: stay low for the goal, or go up for the warp star
-    ledge(fork + 150, 58, 104);
-    ledge(fork + 300, 116, 112, fork + 150);
-    warpStar(fork + 356, 156, fork + 150, POPSTAR, 'POPSTAR');
-    ringArc(fork + 170, groundAt(fork + 150) - 96, 4, 30, 26);
+    // the fork at the end: run on to the goal, or hop up and hit the button
+    ledge(fork + 250, 58, 130);
+    warpButton(fork + 315, 58, fork + 250, POPSTAR, 'POPSTAR');
+    ringArc(fork + 150, groundAt(fork + 150) - 40, 4, 30, 34);
 
     ringRun(430, 4, 40);
     ringRun(up1 + 120, 7, 48, 38);
@@ -3361,74 +3360,93 @@ function drawBossBar(){
    carrying straight on.
    ========================================================================== */
 const warps = [];
-function warpStar(x, up, refX, to, label){
-  warps.push({ x, y: groundAt(refX === undefined ? x : refX) - up, to, label: label || 'POPSTAR', t: 0, taken: false });
+// a big arcade button. Stand on it and it takes you somewhere else.
+function warpButton(x, up, refX, to, label){
+  warps.push({ x, y: groundAt(refX === undefined ? x : refX) - up, to,
+               label: label || 'POPSTAR', press: 0, pressed: false, taken: false });
 }
 
 function drawWarps(){
   for (const w of warps){
-    if (w.x < visL() - 60 || w.x > visR() + 60) continue;
-    const bob = Math.sin(frames * 0.05) * 6;
-    const spin = frames * 0.03;
-    const cx = w.x, cy = w.y + bob;
+    if (w.x < visL() - 70 || w.x > visR() + 70) continue;
+    const down = w.press > 0 ? 11 : 0;          // squashed while it is being pressed
+    const bx = w.x, by = w.y;
 
-    // sparkle halo
-    const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, 46);
-    g.addColorStop(0, 'rgba(255,240,150,.55)');
-    g.addColorStop(1, 'rgba(255,220,90,0)');
+    // glow under the button
+    const g = ctx.createRadialGradient(bx, by - 8, 4, bx, by - 8, 50);
+    g.addColorStop(0, 'rgba(255,220,120,.4)');
+    g.addColorStop(1, 'rgba(255,200,80,0)');
     ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(cx, cy, 46, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx, by - 8, 50, 0, 7); ctx.fill();
 
-    // five-pointed warp star
+    // metal base
+    ctx.fillStyle = '#4a5570';
+    ctx.beginPath(); ctx.ellipse(bx, by, 34, 10, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#39415a';
+    ctx.fillRect(bx - 34, by - 9, 68, 9);
+    ctx.fillStyle = '#5c6987';
+    ctx.beginPath(); ctx.ellipse(bx, by - 9, 34, 10, 0, 0, 7); ctx.fill();
+    // hazard trim
+    ctx.fillStyle = '#ffd23f';
+    for (let i = -2; i <= 2; i++) ctx.fillRect(bx + i * 13 - 4, by - 6, 7, 4);
+
+    // the red dome
+    const top = by - 22 + down;
+    ctx.fillStyle = '#a81d2b';
+    ctx.beginPath(); ctx.ellipse(bx, top + 8, 26, 11, 0, 0, 7); ctx.fill();
+    ctx.fillRect(bx - 26, top, 52, 9);
+    ctx.fillStyle = w.press > 0 ? '#ff8f8f' : '#e0303c';
+    ctx.beginPath(); ctx.ellipse(bx, top, 26, 12, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.45)';
+    ctx.beginPath(); ctx.ellipse(bx - 8, top - 3, 9, 4, -0.3, 0, 7); ctx.fill();
+    // star stamped on the top
     ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(Math.sin(spin) * 0.25);
-    for (const [R, col] of [[23, '#ffb02e'], [19, '#ffd23f'], [11, '#fff3b0']]){
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++){
-        const a = -Math.PI / 2 + i * Math.PI / 5;
-        const rr = i % 2 ? R * 0.44 : R;
-        ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
-      }
-      ctx.closePath();
-      ctx.fillStyle = col; ctx.fill();
+    ctx.translate(bx, top);
+    ctx.scale(1, 0.46);
+    ctx.fillStyle = '#ffd23f';
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++){
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const rr = i % 2 ? 5 : 12;
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
     }
-    // a little face, because it is a warp star
-    ctx.fillStyle = '#2b1c10';
-    ctx.beginPath(); ctx.ellipse(-5, -2, 1.8, 2.6, 0, 0, 7); ctx.ellipse(5, -2, 1.8, 2.6, 0, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#2b1c10'; ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.arc(0, 3, 3, 0.2, Math.PI - 0.2); ctx.stroke();
+    ctx.closePath(); ctx.fill();
     ctx.restore();
 
-    // trailing sparkles
-    for (let i = 0; i < 4; i++){
-      const t = (frames * 0.03 + i * 0.25) % 1;
-      ctx.globalAlpha = 1 - t;
-      ctx.fillStyle = '#fff3b0';
-      ctx.fillRect(cx - 26 - t * 22, cy + Math.sin(i * 2 + frames * 0.1) * 12, 3, 3);
-    }
-    ctx.globalAlpha = 1;
-
-    // banner naming where it goes
+    // signpost above it
+    const sy = by - 74;
+    ctx.fillStyle = '#9aa7bb'; ctx.fillRect(bx - 2, sy + 10, 4, 34);
     ctx.font = '8px "Press Start 2P", monospace';
     const tw = ctx.measureText(w.label).width;
-    ctx.fillStyle = 'rgba(11,18,32,.8)';
-    ctx.fillRect(cx - tw / 2 - 6, cy - 54, tw + 12, 15);
+    ctx.fillStyle = 'rgba(11,18,32,.85)';
+    ctx.fillRect(bx - tw / 2 - 8, sy - 6, tw + 16, 18);
     ctx.fillStyle = '#ffd23f';
-    ctx.fillRect(cx - tw / 2 - 6, cy - 54, tw + 12, 2);
+    ctx.fillRect(bx - tw / 2 - 8, sy - 6, tw + 16, 2);
+    ctx.fillRect(bx - tw / 2 - 8, sy + 10, tw + 16, 2);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(w.label, cx - tw / 2, cy - 43);
+    ctx.fillText(w.label, bx - tw / 2, sy + 7);
   }
 }
 
 function checkWarps(){
-  if (state === 'title') return;            // the attract demo never warps
   for (const w of warps){
     if (w.taken) continue;
-    if (Math.abs(w.x - P.x) < 28 && Math.abs(w.y - P.y) < 34){
-      w.taken = true;
-      takeWarp(w.to);
-      return;
+    if (w.press > 0){                       // clunking down, then off you go
+      if (--w.press === 0){ w.taken = true; takeWarp(w.to); }
+      continue;
+    }
+    if (state === 'title') continue;        // the attract demo never presses it
+    if (w.pressed) continue;
+    const onIt = Math.abs(w.x - P.x) < 34 && P.y + P.r > w.y - 40 && P.y - P.r < w.y + 10;
+    if (onIt){
+      w.pressed = true; w.press = 22;
+      P.vy = Math.min(P.vy, -3);            // a small bounce off the button
+      Audio_.blip(240, .09, 'square', .22, 150);
+      shake = 5;
+      for (let i = 0; i < 14; i++)
+        particles.push({ x: w.x + (Math.random()-.5)*44, y: w.y - 20,
+                         vx:(Math.random()-.5)*4, vy:-Math.random()*3.5,
+                         life:26, max:26, c: i % 2 ? '#ffd23f' : '#ffffff', s:3 });
     }
   }
 }
@@ -3920,7 +3938,7 @@ function newGame(i){
   zone = Math.max(0, Math.min(ZONES.length - 1, i));
   returnZone = null;
   P.char = 'jack'; P.puffs = 0; swapHint = 0;   // every run starts as Jack
-  for (const w of warps) w.taken = false;
+  for (const w of warps){ w.taken = false; w.pressed = false; w.press = 0; }
   P.spawns = 2; P.score = 0;
   startZoneRun();
 }
