@@ -111,6 +111,20 @@
     color:#ff9a9a;
     margin:0;
   }
+  .bonus-offer{
+    font-size:clamp(5px, 2.3cqh, 11px);
+    letter-spacing:.1em;
+    color:var(--gold);
+    margin:0;
+    padding:.55em .9em;
+    border:2px solid rgba(255,210,63,.6);
+    border-radius:5px;
+    background:rgba(255,210,63,.12);
+    animation:softpulse 1.4s ease-in-out infinite;
+  }
+  .bonus-offer b{ color:#fff; font-weight:400 }
+  @keyframes softpulse{ 50%{ border-color:rgba(255,210,63,1); background:rgba(255,210,63,.24) } }
+  @media (prefers-reduced-motion: reduce){ .bonus-offer{ animation:none } }
   .keys{
     display:grid;
     grid-template-columns:repeat(3, 1fr);
@@ -203,6 +217,7 @@
     <p class="big" id="clearTitle">ZONE CLEAR!</p>
     <div class="results" id="tally"></div>
     <p class="tagline" id="nextUp"></p>
+    <p class="bonus-offer" id="bonusOffer" hidden>&#9733; OR PRESS <b>B</b> FOR PLANET POPSTAR &#9733;</p>
     <p class="prompt">PRESS SPACE FOR THE NEXT ZONE</p>
   </div>
 
@@ -564,7 +579,7 @@ const ZONES = [
   }
 },
 {
-  name:'FROSTBITE PEAKS', startY:300, key:3, tempo:0.112, deco:'snow',
+  name:'FROSTBITE PEAKS', startY:300, key:3, tempo:0.112, deco:'snow', bonusExit:true,
   theme:{ skyTop:'#3d6fa8', skyMid:'#8fc4e8', skyLow:'#dbeefb',
           hillFar:'#7fa8c9', hillNear:'#5b83a5',
           grass:'#eaf6ff', grassHi:'#ffffff', grassLo:'#b9d6ea',
@@ -589,9 +604,6 @@ const ZONES = [
     const fork = at();
     flat(1100);
 
-    // the fork at the end: run on to the goal, or hop up and hit the button
-    ledge(fork + 250, 58, 130);
-    warpButton(fork + 315, 58, fork + 250, POPSTAR, 'POPSTAR');
     ringArc(fork + 150, groundAt(fork + 150) - 40, 4, 30, 34);
 
     ringRun(430, 4, 40);
@@ -1572,7 +1584,6 @@ const ZONES = [
     const run = at(); flat(900);
     flat(1100);
 
-    buddy(330);                      // Nana is standing right here
     // a bonus stage: rings everywhere, barely any trouble
     ringRun(420, 6, 40);
     ringHop(h1 + 160, 4, 240, 46);
@@ -3359,99 +3370,8 @@ function drawBossBar(){
    Zone 3 has one. Climb to it and you go to Planet Popstar instead of
    carrying straight on.
    ========================================================================== */
-const warps = [];
-// a big arcade button. Stand on it and it takes you somewhere else.
-function warpButton(x, up, refX, to, label){
-  warps.push({ x, y: groundAt(refX === undefined ? x : refX) - up, to,
-               label: label || 'POPSTAR', press: 0, pressed: false, taken: false });
-}
-
-function drawWarps(){
-  for (const w of warps){
-    if (w.x < visL() - 70 || w.x > visR() + 70) continue;
-    const down = w.press > 0 ? 11 : 0;          // squashed while it is being pressed
-    const bx = w.x, by = w.y;
-
-    // glow under the button
-    const g = ctx.createRadialGradient(bx, by - 8, 4, bx, by - 8, 50);
-    g.addColorStop(0, 'rgba(255,220,120,.4)');
-    g.addColorStop(1, 'rgba(255,200,80,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(bx, by - 8, 50, 0, 7); ctx.fill();
-
-    // metal base
-    ctx.fillStyle = '#4a5570';
-    ctx.beginPath(); ctx.ellipse(bx, by, 34, 10, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = '#39415a';
-    ctx.fillRect(bx - 34, by - 9, 68, 9);
-    ctx.fillStyle = '#5c6987';
-    ctx.beginPath(); ctx.ellipse(bx, by - 9, 34, 10, 0, 0, 7); ctx.fill();
-    // hazard trim
-    ctx.fillStyle = '#ffd23f';
-    for (let i = -2; i <= 2; i++) ctx.fillRect(bx + i * 13 - 4, by - 6, 7, 4);
-
-    // the red dome
-    const top = by - 22 + down;
-    ctx.fillStyle = '#a81d2b';
-    ctx.beginPath(); ctx.ellipse(bx, top + 8, 26, 11, 0, 0, 7); ctx.fill();
-    ctx.fillRect(bx - 26, top, 52, 9);
-    ctx.fillStyle = w.press > 0 ? '#ff8f8f' : '#e0303c';
-    ctx.beginPath(); ctx.ellipse(bx, top, 26, 12, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.45)';
-    ctx.beginPath(); ctx.ellipse(bx - 8, top - 3, 9, 4, -0.3, 0, 7); ctx.fill();
-    // star stamped on the top
-    ctx.save();
-    ctx.translate(bx, top);
-    ctx.scale(1, 0.46);
-    ctx.fillStyle = '#ffd23f';
-    ctx.beginPath();
-    for (let i = 0; i < 10; i++){
-      const a = -Math.PI / 2 + i * Math.PI / 5;
-      const rr = i % 2 ? 5 : 12;
-      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
-    }
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
-
-    // signpost above it
-    const sy = by - 74;
-    ctx.fillStyle = '#9aa7bb'; ctx.fillRect(bx - 2, sy + 10, 4, 34);
-    ctx.font = '8px "Press Start 2P", monospace';
-    const tw = ctx.measureText(w.label).width;
-    ctx.fillStyle = 'rgba(11,18,32,.85)';
-    ctx.fillRect(bx - tw / 2 - 8, sy - 6, tw + 16, 18);
-    ctx.fillStyle = '#ffd23f';
-    ctx.fillRect(bx - tw / 2 - 8, sy - 6, tw + 16, 2);
-    ctx.fillRect(bx - tw / 2 - 8, sy + 10, tw + 16, 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(w.label, bx - tw / 2, sy + 7);
-  }
-}
-
-function checkWarps(){
-  for (const w of warps){
-    if (w.taken) continue;
-    if (w.press > 0){                       // clunking down, then off you go
-      if (--w.press === 0){ w.taken = true; takeWarp(w.to); }
-      continue;
-    }
-    if (state === 'title') continue;        // the attract demo never presses it
-    if (w.pressed) continue;
-    const onIt = Math.abs(w.x - P.x) < 34 && P.y + P.r > w.y - 40 && P.y - P.r < w.y + 10;
-    if (onIt){
-      w.pressed = true; w.press = 22;
-      P.vy = Math.min(P.vy, -3);            // a small bounce off the button
-      Audio_.blip(240, .09, 'square', .22, 150);
-      shake = 5;
-      for (let i = 0; i < 14; i++)
-        particles.push({ x: w.x + (Math.random()-.5)*44, y: w.y - 20,
-                         vx:(Math.random()-.5)*4, vy:-Math.random()*3.5,
-                         life:26, max:26, c: i % 2 ? '#ffd23f' : '#ffffff', s:3 });
-    }
-  }
-}
-
-function takeWarp(to){
+// the side trip offered on the zone-3 results screen
+function goToPopstar(){
   returnZone = zone + 1;                    // where the normal route would have gone
   warpFlash = 42;
   Audio_.blip(523, .12, 'square', .2, 1568);
@@ -3460,8 +3380,11 @@ function takeWarp(to){
     particles.push({ x: P.x + (Math.random()-.5)*40, y: P.y + (Math.random()-.5)*40,
                      vx:(Math.random()-.5)*7, vy:(Math.random()-.5)*7, life:34, max:34,
                      c: i % 2 ? '#ffd23f' : '#ffffff', s:3 });
-  zone = to;
+  zone = POPSTAR;
   startZoneRun();
+  P.char = 'nana';                          // you run Popstar as Nana
+  swapHint = 260;
+  setState('play');
 }
 
 /* --------------------------- Planet Popstar ------------------------------ */
@@ -3571,10 +3494,6 @@ function popstarBack(){
    NANA — waiting on Popstar. Touch him and you swap over.
    He runs like Jack but can puff up and float in mid-air.
    ========================================================================== */
-const buddies = [];
-function buddy(x){ buddies.push({ x, y: groundAt(x) - 18, inside: false, t: 0 }); }
-
-/* Nana, drawn the way she looks in Nana's Dreamland */
 const NP = { body:'#ffd93b', shade:'#f0b400', hi:'#fff29a',
              armBack:'#ffcf2e', footBack:'#d94a2e', footFront:'#f4663f',
              blush:'#ff8fb1', out:'#3a2a52', eyeDark:'#2b2350', mouth:'#7d2438' };
@@ -3689,57 +3608,6 @@ function drawChar(who, x, y, ang, face, ball, anim, ghost, spd, crouch){
   else drawJack(x, y, ang, face, ball, anim, ghost, spd, crouch);
 }
 
-/* ---------- the buddy standing on Popstar ---------- */
-function drawBuddies(){
-  for (const b of buddies){
-    if (b.x < visL() - 60 || b.x > visR() + 60) continue;
-    const other = P.char === 'nana' ? 'jack' : 'nana';
-    const bob = Math.sin(frames * 0.045) * 2;
-    // a soft spotlight so he stands out
-    const g = ctx.createRadialGradient(b.x, b.y, 6, b.x, b.y, 46);
-    g.addColorStop(0, 'rgba(255,255,255,.35)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(b.x, b.y, 46, 0, 7); ctx.fill();
-
-    drawChar(other, b.x, b.y + bob, 0, -1, false, frames * 0.02, false, 0, false);
-
-    const label = other === 'nana' ? 'PLAY AS NANA' : 'PLAY AS JACK';
-    ctx.font = '8px "Press Start 2P", monospace';
-    const tw = ctx.measureText(label).width;
-    ctx.fillStyle = 'rgba(11,18,32,.8)';
-    ctx.fillRect(b.x - tw / 2 - 6, b.y - 62, tw + 12, 15);
-    ctx.fillStyle = other === 'nana' ? '#ffd93b' : C.hero;
-    ctx.fillRect(b.x - tw / 2 - 6, b.y - 62, tw + 12, 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(label, b.x - tw / 2, b.y - 51);
-  }
-}
-
-function checkBuddies(){
-  if (state === 'title') return;
-  for (const b of buddies){
-    // one swap per approach: step away and come back to swap again
-    const touching = Math.abs(b.x - P.x) < 28 && Math.abs(b.y - P.y) < 36;
-    if (touching && !b.inside) swapChar();
-    b.inside = touching;
-  }
-}
-
-function swapChar(){
-  P.char = P.char === 'nana' ? 'jack' : 'nana';
-  P.puffs = 0;
-  swapHint = P.char === 'nana' ? 260 : 0;
-  Audio_.blip(660, .1, 'square', .18, 1320);
-  setTimeout(() => Audio_.blip(990, .14, 'square', .16, 1760), 80);
-  for (let i = 0; i < 22; i++){
-    const a = i / 22 * Math.PI * 2;
-    particles.push({ x: P.x + Math.cos(a) * 14, y: P.y + Math.sin(a) * 14,
-                     vx: Math.cos(a) * 3.4, vy: Math.sin(a) * 3.4 - 1,
-                     life: 30, max: 30, c: i % 2 ? '#ff9ec4' : '#ffffff', s: 3 });
-  }
-}
-
 /* --- ambient weather/particle layer, one per zone --- */
 let ambient = [];
 function makeAmbient(kind){
@@ -3763,7 +3631,7 @@ function loadZone(i){
   const z = ZONES[i];
   hm.length = 0;
   buildY = z.startY;
-  rings.length = enemies.length = springs.length = spikes.length = warps.length = buddies.length = 0;
+  rings.length = enemies.length = springs.length = spikes.length = 0;
   platforms.length = loops.length = boosters.length = monitors.length = lamps.length = 0;
   z.build();
   LEVEL_W = hm.length * CELL;
@@ -3830,6 +3698,9 @@ addEventListener('keydown', e => {
     else if (state === 'over'){ pick = 0; newGame(0); setState('play'); }
     else if (state === 'clear'){ advanceZone(); }
     else if (state === 'complete'){ pick = 0; setState('title'); newGame(0); }
+  }
+  else if (key === 'b' && state === 'clear' && ZONES[zone].bonusExit){
+    goToPopstar();
   }
   else if (state === 'title' && (key === 'left' || key === 'right')){
     pick = (pick + (key === 'right' ? 1 : ZONES.length - 1)) % ZONES.length;
@@ -3901,6 +3772,7 @@ const els = {
   doneScore: document.getElementById('doneScore'),
   doneTitle: document.getElementById('doneTitle'),
   zonePick: document.getElementById('zonePick'),
+  bonusOffer: document.getElementById('bonusOffer'),
   overTitle: document.getElementById('overTitle'),
   overSub: document.getElementById('overSub'),
   tally: document.getElementById('tally')
@@ -3934,7 +3806,6 @@ function newGame(i){
   zone = Math.max(0, Math.min(ZONES.length - 1, i));
   returnZone = null;
   P.char = 'jack'; P.puffs = 0; swapHint = 0;   // every run starts as Jack
-  for (const w of warps){ w.taken = false; w.pressed = false; w.press = 0; }
   P.spawns = 2; P.score = 0;
   startZoneRun();
 }
@@ -4053,8 +3924,6 @@ function update(){
   clampWorld();
   collectibles();
   hazards();
-  checkWarps();
-  checkBuddies();
   if (swapHint > 0) swapHint--;
   if (warpFlash > 0) warpFlash--;
   if (ZONES[zone].boss) updateBoss();
@@ -4505,8 +4374,6 @@ function draw(){
   if (ZONES[zone].front) ZONES[zone].front();
   drawPlatforms();
   drawObjects();
-  drawWarps();
-  drawBuddies();
   drawEntities();
   if (ZONES[zone].boss) drawBoss();
   drawParticlesBack();
@@ -5212,6 +5079,7 @@ function showResults(){
     '<span>RING BONUS</span><span>' + ringBonus + '</span>' +
     '<span>TOTAL</span><span>' + P.score + '</span>';
   if (ZONES[zone].bonus) els.clearTitle.textContent = 'POPSTAR CLEAR!';
+  els.bonusOffer.hidden = !ZONES[zone].bonusExit;
   els.nextUp.textContent = ZONES[zone].bonus
     ? 'BACK TO PEACE HILLS \u00b7 ZONE ' + ((returnZone === null ? 3 : returnZone) + 1)
     : zone + 1 < ZONES.length
